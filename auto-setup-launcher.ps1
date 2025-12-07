@@ -1,69 +1,94 @@
-# ================================
-# Auto Setup + Git Push + Run Loader
-# ================================
+<#
+    auto-setup-launcher.ps1
+    - Full automated setup for GameLauncher
+    - Requires PowerShell 5+ and Git installed
+#>
 
 Write-Host "Starting GameLauncher Auto Setup..."
 
-# ตรวจสอบ Git ก่อน
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Host "Git is NOT installed. Please install Git from https://git-scm.com/downloads"
+# ----- 1. ตรวจสอบ Git -----
+try {
+    git --version > $null 2>&1
+    Write-Host "Git detected."
+} catch {
+    Write-Host "Git is not installed. Please install Git from https://git-scm.com/download/win"
     exit
 }
 
-Write-Host "Git detected."
+# ----- 2. ตั้งค่า Git user ถ้ายังไม่ตั้ง -----
+$userName = git config --global user.name
+$userEmail = git config --global user.email
+if (-not $userName -or -not $userEmail) {
+    git config --global user.name "Danuphon15"
+    git config --global user.email "danuphon15@example.com"
+    Write-Host "Git identity set."
+}
 
-# Path โปรเจกต์
-$projectPath = "C:\Users\Administrator\Desktop\GameLauncher"
+# ----- 3. ตั้งค่า path โปรเจกต์ -----
+$ProjectPath = "C:\Users\Administrator\Desktop\GameLauncher"
+$RepoUrl = "https://github.com/Danuphon15/GameLauncher.git"
 
-if (-not (Test-Path $projectPath)) {
-    Write-Host "Project folder not found: $projectPath"
+if (!(Test-Path $ProjectPath)) {
+    Write-Host "Project folder not found: $ProjectPath"
     exit
 }
 
-cd $projectPath
+cd $ProjectPath
 
-# ตรวจสอบ .git
-if (-not (Test-Path "$projectPath\.git")) {
+# ----- 4. Init Git repo ถ้ายังไม่มี -----
+if (!(Test-Path ".git")) {
     git init
-    git branch -M main
 }
 
-# ตั้งค่า Git identity
-git config --global user.name "Danuphon15"
-git config --global user.email "danuphon15@example.com"
+# ----- 5. ปรับค่าเกมใน game-config.json -----
+$configFile = Join-Path $ProjectPath "config\game-config.json"
 
-# สร้าง config ใหม่ตามค่าที่คุณต้องการ
-$ConfigPath = "$projectPath\config\game-config.json"
+# โหลดค่า JSON
+try {
+    $GameConfig = Get-Content $configFile | ConvertFrom-Json
+} catch {
+    Write-Host "Cannot load game-config.json"
+    exit
+}
 
-$ConfigContent = @{
-    Combat = @{
-        EasyHit = $true
-        CritBoost = 2.0
-        HeadshotAssist = 1.5
-    }
-    Camera = @{
-        SmoothTurn = $true
-        TurnSpeed = 1.8
-        MotionStability = $true
-    }
-} | ConvertTo-Json -Depth 10
+# ปรับค่าเกมใหม่ (ตีเข้ามุมง่าย, ไม้ออกไว, ฟิลสมูท)
+$GameConfig.combat.damageMultiplier = 1.5
+$GameConfig.combat.attackSpeed = 1.5
+$GameConfig.combat.criticalChance = 0.5
+$GameConfig.camera.smoothness = 1.2
+$GameConfig.camera.rotationSpeed = 1.5
 
-Set-Content -Path $ConfigPath -Value $ConfigContent -Encoding UTF8
-
+# บันทึกกลับ JSON
+$GameConfig | ConvertTo-Json -Depth 10 | Set-Content $configFile -Encoding UTF8
 Write-Host "Updated game-config.json with new combat/camera values."
 
-# Git push อัตโนมัติ
+# ----- 6. Commit + Push -----
 git add .
-git commit -m "Auto-update game config + auto push"
-git remote add origin https://github.com/Danuphon15/GameLauncher.git 2>$null
-git push -u origin main
+$commitMessage = "Auto-update game config & setup GameLauncher"
+git commit -m $commitMessage -q 2>$null
 
-Write-Host "Push complete!"
+# ตรวจสอบ remote
+$remotes = git remote
+if (!($remotes -match "origin")) {
+    git remote add origin $RepoUrl
+}
 
-# รัน loader จาก GitHub
+git branch -M main
+
+try {
+    git push -u origin main
+    Write-Host "Push complete!"
+} catch {
+    Write-Host "Failed to push to GitHub. If repo already has commits, run:"
+    Write-Host "git pull origin main --allow-unrelated-histories"
+}
+
+# ----- 7. รัน loader จาก GitHub -----
 $LoaderUrl = "https://raw.githubusercontent.com/Danuphon15/GameLauncher/main/scripts/load-game.ps1"
 
 Write-Host "Running game loader from GitHub..."
-iex (iwr -UseBasicParsing $LoaderUrl)
-
-Write-Host "Automation Complete."
+try {
+    iex (iwr -UseBasicParsing $LoaderUrl)
+} catch {
+    Write-Host "Failed to load game config from $LoaderUrl"
+}
