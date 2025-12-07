@@ -1,7 +1,6 @@
 <#
     auto-setup-launcher.ps1
-    - Full automated setup for GameLauncher
-    - Requires PowerShell 5+ and Git installed
+    Full automation for GameLauncher
 #>
 
 Write-Host "Starting GameLauncher Auto Setup..."
@@ -43,7 +42,6 @@ if (!(Test-Path ".git")) {
 # ----- 5. ปรับค่าเกมใน game-config.json -----
 $configFile = Join-Path $ProjectPath "config\game-config.json"
 
-# โหลดค่า JSON
 try {
     $GameConfig = Get-Content $configFile | ConvertFrom-Json
 } catch {
@@ -51,14 +49,13 @@ try {
     exit
 }
 
-# ปรับค่าเกมใหม่ (ตีเข้ามุมง่าย, ไม้ออกไว, ฟิลสมูท)
+# ปรับค่าเกมใหม่
 $GameConfig.combat.damageMultiplier = 1.5
 $GameConfig.combat.attackSpeed = 1.5
 $GameConfig.combat.criticalChance = 0.5
 $GameConfig.camera.smoothness = 1.2
 $GameConfig.camera.rotationSpeed = 1.5
 
-# บันทึกกลับ JSON
 $GameConfig | ConvertTo-Json -Depth 10 | Set-Content $configFile -Encoding UTF8
 Write-Host "Updated game-config.json with new combat/camera values."
 
@@ -67,7 +64,6 @@ git add .
 $commitMessage = "Auto-update game config & setup GameLauncher"
 git commit -m $commitMessage -q 2>$null
 
-# ตรวจสอบ remote
 $remotes = git remote
 if (!($remotes -match "origin")) {
     git remote add origin $RepoUrl
@@ -91,4 +87,15 @@ try {
     iex (iwr -UseBasicParsing $LoaderUrl)
 } catch {
     Write-Host "Failed to load game config from $LoaderUrl"
+    exit
+}
+
+# ----- 8. เปิดเกม executable -----
+$GameExePath = "C:\Games\NewGame\Game.exe"   # <-- แก้ path ให้ตรงกับเกมคุณ
+
+if (Test-Path $GameExePath) {
+    Write-Host "Launching game at $GameExePath..."
+    Start-Process $GameExePath
+} else {
+    Write-Host "Game executable not found at $GameExePath"
 }
