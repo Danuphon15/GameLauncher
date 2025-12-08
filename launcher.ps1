@@ -1,44 +1,39 @@
-# === Permanent GameLauncher ===
-$CorePath = "C:\GameLauncherCore"
-$ConfigPath = "$CorePath\config.json"
-$LoaderPath = "$CorePath\load-game.ps1"
+# === GameLauncher PRO Permanent System ===
+$Core = "C:\GameLauncherCore"
+$Config = "$Core\config.json"
+$Loader = "$Core\load-game.ps1"
 
-# สร้างโฟลเดอร์ถ้ายังไม่มี
-if (!(Test-Path $CorePath)) {
-    New-Item -ItemType Directory -Path $CorePath | Out-Null
-}
+# GitHub URLs (ของคุณเอง)
+$rawBase = "https://raw.githubusercontent.com/Danuphon15/GameLauncher/main"
+$GitConfig = "$rawBase/config.json"
+$GitLoader = "$rawBase/load-game.ps1"
 
-Write-Host "=== Updating Files from GitHub ==="
+# Create core folder if missing
+if (!(Test-Path $Core)) { New-Item -ItemType Directory -Path $Core | Out-Null }
 
-# URLs จาก GitHub ของคุณ
-$GitConfigURL = "https://raw.githubusercontent.com/Danuphon15/GameLauncher/main/game-config.json"
-$GitLoaderURL = "https://raw.githubusercontent.com/Danuphon15/GameLauncher/main/load-game.ps1"
+Write-Host "=== Updating from GitHub (PRO MODE) ==="
 
-# ดาวน์โหลด config.json
+# Update config
 try {
-    Invoke-WebRequest -Uri $GitConfigURL -OutFile $ConfigPath -UseBasicParsing
-    Write-Host "[OK] Updated config.json"
-}
-catch {
+    Invoke-WebRequest -Uri $GitConfig -OutFile $Config -UseBasicParsing
+    Write-Host "[OK] Config updated"
+} catch {
     Write-Host "[ERROR] Cannot download config.json"
 }
 
-# ดาวน์โหลด loader
+# Update loader
 try {
-    Invoke-WebRequest -Uri $GitLoaderURL -OutFile $LoaderPath -UseBasicParsing
-    Write-Host "[OK] Updated load-game.ps1"
-}
-catch {
+    Invoke-WebRequest -Uri $GitLoader -OutFile $Loader -UseBasicParsing
+    Write-Host "[OK] Loader updated"
+} catch {
     Write-Host "[ERROR] Cannot download load-game.ps1"
 }
 
-# ตรวจสอบ loader มีอยู่จริงก่อนรัน
-if (!(Test-Path $LoaderPath)) {
-    Write-Host "[ERROR] Loader not found at $LoaderPath"
+if (!(Test-Path $Loader)) {
+    Write-Host "[ERROR] Loader missing."
     exit
 }
 
-Write-Host "=== Launching FiveM with Updated Settings ==="
+Write-Host "=== Starting FiveM with PRO settings ==="
 
-# เรียกใช้ loader
-powershell -ExecutionPolicy Bypass -File $LoaderPath
+powershell -ExecutionPolicy Bypass -File $Loader
