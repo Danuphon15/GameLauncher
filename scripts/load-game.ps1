@@ -1,37 +1,39 @@
-# === FiveM PRO Loader ===
+# === GameLauncher PRO loader ===
+$ConfigPath = Join-Path (Split-Path $MyInvocation.MyCommand.Path -Parent) "..\\config\\game-config.json"
+$ConfigPath = Resolve-Path $ConfigPath -ErrorAction SilentlyContinue
 
-$ConfigPath = "C:\GameLauncherCore\config.json"
-
-if (!(Test-Path $ConfigPath)) {
-    Write-Host "[ERROR] Config file missing."
-    exit
+if (-not $ConfigPath) {
+    Write-Host "[ERROR] config/game-config.json not found."
+    exit 1
 }
 
 $config = Get-Content $ConfigPath | ConvertFrom-Json
 
-# Show settings
-Write-Host "Combat Boost: Recoil=$($config.combat.recoil), Spread=$($config.combat.spread)"
-Write-Host "Camera FOV: $($config.camera.fov) Sensitivity: $($config.camera.sensitivity)"
+Write-Host "Loaded config (combat/camera):"
+Write-Host "  Combat: Recoil=$($config.combat.recoil), AttackSpeed=$($config.combat.attackSpeed), CritChance=$($config.combat.criticalChance)"
+Write-Host "  Camera: FOV=$($config.camera.fov), Sensitivity=$($config.camera.sensitivity)"
 
-# OPTIONAL: inject settings into FiveM config
-$FiveMAppData = "$env:LOCALAPPDATA\FiveM\FiveM.app\data\client\settings.json"
-
-if (Test-Path $FiveMAppData) {
-    $clientSettings = @{
-        "fov" = $config.camera.fov
-        "sensitivity" = $config.camera.sensitivity
-        "shake" = $config.camera.shake
-    } | ConvertTo-Json -Depth 10
-
-    Set-Content -Path $FiveMAppData -Value $clientSettings -Force
-    Write-Host "[OK] Applied camera settings"
+# Example: apply client-side camera settings (if FiveM stores settings at this path)
+$FiveMClientSettings = "$env:LOCALAPPDATA\FiveM\FiveM.app\data\client\settings.json"
+if (Test-Path (Split-Path $FiveMClientSettings -Parent)) {
+    try {
+        $clientSettings = @{}
+        $clientSettings.fov = $config.camera.fov
+        $clientSettings.sensitivity = $config.camera.sensitivity
+        $clientSettings.shake = $config.camera.shake
+        $clientSettings | ConvertTo-Json -Depth 10 | Set-Content -Path $FiveMClientSettings -Encoding UTF8
+        Write-Host "[OK] Applied camera settings to FiveM client settings (if supported)."
+    } catch {
+        Write-Host "[WARN] Failed to write FiveM client settings."
+    }
 }
 
 # Launch FiveM
-$FiveM = "C:\Program Files\FiveM\FiveM.exe"
-if (Test-Path $FiveM) {
-    Start-Process $FiveM
-    Write-Host "[OK] FiveM started"
+$FiveMExe = $config.fivem_path
+if (Test-Path $FiveMExe) {
+    Start-Process -FilePath $FiveMExe
+    Write-Host "[OK] Launched FiveM."
 } else {
-    Write-Host "[ERROR] FiveM.exe not found."
+    Write-Host "[ERROR] FiveM executable not found at: $FiveMExe"
+    exit 1
 }
