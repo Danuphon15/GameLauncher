@@ -1,39 +1,26 @@
-# === GameLauncher PRO Permanent System ===
+# === GameLauncher PRO Permanent Launcher ===
 $Core = "C:\GameLauncherCore"
-$Config = "$Core\config.json"
-$Loader = "$Core\load-game.ps1"
+if (-not (Test-Path $Core)) { New-Item -ItemType Directory -Path $Core | Out-Null }
 
-# GitHub URLs (ของคุณเอง)
 $rawBase = "https://raw.githubusercontent.com/Danuphon15/GameLauncher/main"
-$GitConfig = "$rawBase/config.json"
-$GitLoader = "$rawBase/load-game.ps1"
+$GitConfig = "$rawBase/config/game-config.json"
+$GitLoader = "$rawBase/scripts/load-game.ps1"
 
-# Create core folder if missing
-if (!(Test-Path $Core)) { New-Item -ItemType Directory -Path $Core | Out-Null }
+$localConfig = Join-Path $Core "config-game.json"
+$localLoader = Join-Path $Core "load-game.ps1"
 
-Write-Host "=== Updating from GitHub (PRO MODE) ==="
+Write-Host "Updating config from $GitConfig"
+try { Invoke-WebRequest -Uri $GitConfig -OutFile $localConfig -UseBasicParsing; Write-Host "[OK] config downloaded." } catch { Write-Host "[ERROR] config download failed." }
 
-# Update config
-try {
-    Invoke-WebRequest -Uri $GitConfig -OutFile $Config -UseBasicParsing
-    Write-Host "[OK] Config updated"
-} catch {
-    Write-Host "[ERROR] Cannot download config.json"
-}
+Write-Host "Updating loader from $GitLoader"
+try { Invoke-WebRequest -Uri $GitLoader -OutFile $localLoader -UseBasicParsing; Write-Host "[OK] loader downloaded." } catch { Write-Host "[ERROR] loader download failed." }
 
-# Update loader
-try {
-    Invoke-WebRequest -Uri $GitLoader -OutFile $Loader -UseBasicParsing
-    Write-Host "[OK] Loader updated"
-} catch {
-    Write-Host "[ERROR] Cannot download load-game.ps1"
-}
+if (-not (Test-Path $localLoader)) { Write-Host "[FATAL] loader missing"; exit 1 }
 
-if (!(Test-Path $Loader)) {
-    Write-Host "[ERROR] Loader missing."
-    exit
-}
+# Ensure config is placed where loader expects: move into a config folder
+$targetConfigDir = Join-Path $Core "config"
+if (-not (Test-Path $targetConfigDir)) { New-Item -ItemType Directory -Path $targetConfigDir | Out-Null }
+Move-Item -Path $localConfig -Destination (Join-Path $targetConfigDir "game-config.json") -Force
 
-Write-Host "=== Starting FiveM with PRO settings ==="
-
-powershell -ExecutionPolicy Bypass -File $Loader
+# Run loader (use PowerShell with bypass)
+powershell -ExecutionPolicy Bypass -File $localLoader
